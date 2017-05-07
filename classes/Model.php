@@ -1,8 +1,9 @@
 <?php
 
   require_once('MysqliConnector.php');
+//require_once('helpers.php');
 
-  class Model extends MysqliConnector {
+  class Model {
 
     private $table   = null;
     private $select  = null;
@@ -10,10 +11,33 @@
     private $on      = null;
     private $count   = null;
     private $limit = null;
-    private $model = null;
+    //private $model = null;
+    private $instance = null;
+    private $order_by = null;
+    private $order_dir = null;
 
     function __construct(){
-      parent::__construct();
+    //  parent::__construct();
+    $this->instance = MysqliConnector::getInstance();
+
+    }
+
+    public function order_by($order_by, $order_dir){
+      $this->order_by = $order_by;
+      $this->order_dir = $order_dir;
+      return $this;
+    }
+
+    function clean(){
+      //$this->table   = null;
+      $this->select  = null;
+      $this->where   = null;
+      $this->on      = null;
+      $this->count   = null;
+      $this->limit = null;
+      $this->model = null;
+
+      return $this;
     }
 
     public function from($table) {
@@ -27,25 +51,28 @@
     }
 
     public function select($select = array()) {
-      //echo json_encode(array('select'=>$select));
       $this->select = $select;
       return $this;
     }
 
     public function where($where) {
-      //echo json_encode(array('where'=>$where));
-      $this->where = $where;
+      $this->where[] = $where;
       return $this;
     }
 
     public function limit($limit) {
-      //echo json_encode(array('limit'=>$limit));
       $this->limit = $limit;
       return $this;
     }
 
     public function get($params = null) {
-      //echo json_encode(array('get_params'=>$params));
+      if($this->instance == null){
+        //dump('hola2');
+//echo 'instancia nula model';
+        $this->instance = MysqliConnector::getInstance();
+      }else{
+        //dump('hola');
+      }
       $query[] = 'SELECT';
 
       if($this->select == null){
@@ -56,20 +83,26 @@
 
       $query[] = 'FROM';
       $query[] = $this->table;
-
+      //echo "<pre>";
       if($this->where != null){
         $query[] = 'WHERE';
         if(is_array($this->where)){
           $c = count($this->where);
-          for ($i=-1; $i <= $c; $i++) {
+
+          for ($i = 0; $i < $c; $i++) {
             $query[] = $this->where[$i];
-            if($i != $c){
+            if($i + 1 != $c){
               $query[] = 'AND';
             }
           }
         }else{
           $query[] = $this->where;
         }
+      }
+      //echo "</pre>";
+      if($this->order_by != null){
+        $query[] = 'ORDER BY';
+        $query[] = $this->order_by;
       }
 
       if($this->limit != null){
@@ -78,13 +111,18 @@
       }
 
       $query_string = join(' ', $query);
-      var_dump($query_string);
-      $result = $this->instance->query($query_string);
-      $this->instance->close();
+    //  dump($query_string);
+
+      $result = $this->instance->query($query_string) or die('error db');
+      $this->clean();
 
       if($result){
-        if($result->num_rows > 0){
-          return $result->fetch_assoc();
+      //  dump($result->num_rows);
+        if($result->num_rows == 1){
+          //echo 'es uno';
+          $data = $result->fetch_assoc();
+          //dump($data);
+          return $data;
         }else{
           $rows = [];
 
@@ -97,7 +135,6 @@
       }else{
         return false;
       }
-
     }
 
     public function insert() {}
